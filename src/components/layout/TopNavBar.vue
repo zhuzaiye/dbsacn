@@ -297,7 +297,7 @@ function handleMenuSelect(key: string) {
   switch (key) {
     // 文件菜单
     case 'file-new':
-      console.log('New Connection')
+      layoutStore.openConnectionDialog()
       break
     case 'file-open':
       console.log('Open Connection')

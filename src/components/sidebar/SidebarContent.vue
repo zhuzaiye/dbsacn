@@ -90,6 +90,13 @@
         />
       </n-list>
     </div>
+
+    <!-- Connection Dialog -->
+    <ConnectionDialog
+      v-model:show="layoutStore.showConnectionDialog"
+      :edit-id="layoutStore.editConnectionId"
+      @saved="handleDialogSaved"
+    />
   </div>
 </template>
 
@@ -107,14 +114,14 @@ import { AddOutline } from '@vicons/ionicons5'
 import { useLayoutStore } from '@/stores/layout'
 import { useDatabaseStore } from '@/stores/database'
 import { useEditorStore } from '@/stores/editor'
+import ConnectionDialog from '@/components/dialog/ConnectionDialog.vue'
 
 const layoutStore = useLayoutStore()
 const databaseStore = useDatabaseStore()
 const editorStore = useEditorStore()
 
 function handleAddConnection() {
-  // TODO: Open connection dialog
-  console.log('Add connection clicked')
+  layoutStore.openConnectionDialog()
 }
 
 function handleSelectConnection(id: string) {
@@ -122,7 +129,6 @@ function handleSelectConnection(id: string) {
 }
 
 function handleSelectHistory(item: any) {
-  // Create a new tab with the SQL from history
   const tabId = editorStore.createTab(`Query ${new Date(item.executedAt).toLocaleTimeString()}`)
   editorStore.updateTabContent(tabId, item.sql)
 }
@@ -134,6 +140,10 @@ function truncateSql(sql: string, maxLength = 50): string {
 
 function formatTime(date: Date): string {
   return new Date(date).toLocaleString()
+}
+
+function handleDialogSaved() {
+  layoutStore.closeConnectionDialog()
 }
 </script>
 

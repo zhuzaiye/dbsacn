@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { DatabaseConnection, DatabaseNode } from '@/types/database'
+import { connectionStorage } from '@/services/storage/connection'
 
 export const useDatabaseStore = defineStore('database', () => {
   // State
@@ -8,6 +9,7 @@ export const useDatabaseStore = defineStore('database', () => {
   const activeConnectionId = ref<string | null>(null)
   const databaseTree = ref<DatabaseNode[]>([])
   const searchQuery = ref('')
+  const isInitialized = ref(false)
 
   // Getters
   const activeConnection = computed(() => {
@@ -23,6 +25,31 @@ export const useDatabaseStore = defineStore('database', () => {
     )
   })
 
+  // Initialize from storage
+  async function init() {
+    if (isInitialized.value) return
+    
+    try {
+      connections.value = await connectionStorage.load()
+      if (connections.value.length > 0) {
+        const first = connections.value[0]
+        if (first) {
+          activeConnectionId.value = first.id
+        }
+      }
+      isInitialized.value = true
+    } catch (error) {
+      console.error('Failed to initialize database store:', error)
+    }
+  }
+
+  // Save to storage when connections change
+  watch(connections, async () => {
+    if (isInitialized.value) {
+      await connectionStorage.save(connections.value)
+    }
+  }, { deep: true })
+
   // Actions
   function addConnection(connection: Omit<DatabaseConnection, 'id' | 'connected'>) {
     const newConnection: DatabaseConnection = {
@@ -35,22 +62,22 @@ export const useDatabaseStore = defineStore('database', () => {
     return newConnection.id
   }
 
-  function updateConnection(id: string, updates: Partial<Omit<DatabaseConnection, 'id'>>) {
+  async function updateConnection(id: string, updates: Partial<Omit<DatabaseConnection, 'id'>>) {
     const index = connections.value.findIndex(conn => conn.id === id)
     if (index !== -1) {
-      connections.value[index] = {
-        ...connections.value[index],
-        ...updates
-      } as DatabaseConnection
+      const existing = connections.value[index]
+      if (existing) {
+        connections.value[index] = { ...existing, ...updates }
+      }
     }
   }
 
-  function deleteConnection(id: string) {
+  async function deleteConnection(id: string) {
     const index = connections.value.findIndex(conn => conn.id === id)
     if (index !== -1) {
       connections.value.splice(index, 1)
       if (activeConnectionId.value === id) {
-        activeConnectionId.value = connections.value.length > 0 ? connections.value[0]!.id : null
+        activeConnectionId.value = connections.value.length > 0 ? connections.value[0]?.id || null : null
       }
     }
   }
@@ -63,7 +90,10 @@ export const useDatabaseStore = defineStore('database', () => {
 
   function ensureActiveConnectionSelected() {
     if (!activeConnectionId.value && connections.value.length > 0) {
-      activeConnectionId.value = connections.value[0]!.id
+      const first = connections.value[0]
+      if (first) {
+        activeConnectionId.value = first.id
+      }
     }
   }
 
@@ -90,8 +120,10 @@ export const useDatabaseStore = defineStore('database', () => {
     activeConnectionId,
     databaseTree,
     searchQuery,
+    isInitialized,
     activeConnection,
     filteredConnections,
+    init,
     addConnection,
     updateConnection,
     deleteConnection,

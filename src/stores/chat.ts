@@ -37,7 +37,8 @@ export const useChatStore = defineStore('chat', () => {
     if (index !== -1) {
       sessions.value.splice(index, 1)
       if (activeSessionId.value === sessionId) {
-        activeSessionId.value = sessions.value.length > 0 ? sessions.value[0].id : null
+        const first = sessions.value[0]
+        activeSessionId.value = first ? first.id : null
       }
     }
   }

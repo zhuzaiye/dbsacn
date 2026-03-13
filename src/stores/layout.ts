@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { LayoutState } from '@/types/layout'
+import { settingsStorage } from '@/services/storage/settings'
 
 export const useLayoutStore = defineStore('layout', () => {
   // State
@@ -12,6 +13,11 @@ export const useLayoutStore = defineStore('layout', () => {
   const showResultPanel = ref(false)
   const showChatPanel = ref(false)
   const showSourcesPanel = ref(true)
+  const isInitialized = ref(false)
+  
+  // Connection dialog state
+  const showConnectionDialog = ref(false)
+  const editConnectionId = ref<string | undefined>()
 
   // Getters
   const layoutState = computed<LayoutState>(() => ({
@@ -21,6 +27,30 @@ export const useLayoutStore = defineStore('layout', () => {
     activeResultTab: activeResultTab.value,
     theme: theme.value
   }))
+
+  // Initialize from storage
+  async function init() {
+    if (isInitialized.value) return
+    
+    try {
+      const settings = await settingsStorage.load()
+      theme.value = settings.theme
+      sidebarWidth.value = settings.sidebarWidth
+      isInitialized.value = true
+    } catch (error) {
+      console.error('Failed to initialize layout store:', error)
+    }
+  }
+
+  // Save to storage when settings change
+  watch([theme, sidebarWidth], async () => {
+    if (isInitialized.value) {
+      await settingsStorage.save({
+        theme: theme.value,
+        sidebarWidth: sidebarWidth.value
+      })
+    }
+  })
 
   // Actions
   function setSidebarWidth(width: number) {
@@ -63,6 +93,16 @@ export const useLayoutStore = defineStore('layout', () => {
     showChatPanel.value = !showChatPanel.value
   }
 
+  function openConnectionDialog(editId?: string) {
+    editConnectionId.value = editId
+    showConnectionDialog.value = true
+  }
+
+  function closeConnectionDialog() {
+    showConnectionDialog.value = false
+    editConnectionId.value = undefined
+  }
+
   return {
     sidebarWidth,
     isSidebarCollapsed,
@@ -72,7 +112,11 @@ export const useLayoutStore = defineStore('layout', () => {
     showResultPanel,
     showChatPanel,
     showSourcesPanel,
+    isInitialized,
+    showConnectionDialog,
+    editConnectionId,
     layoutState,
+    init,
     setSidebarWidth,
     toggleSidebar,
     setActiveTopNav,
@@ -82,6 +126,8 @@ export const useLayoutStore = defineStore('layout', () => {
     toggleChatPanel,
     toggleShowSourcesPanel,
     toggleShowResultPanel,
-    toggleShowChatPanel
+    toggleShowChatPanel,
+    openConnectionDialog,
+    closeConnectionDialog
   }
 })

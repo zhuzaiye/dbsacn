@@ -67,6 +67,12 @@
       </div>
       <StatusBar />
     </div>
+    <ConnectionDialog
+      :show="layoutStore.showConnectionDialog"
+      :edit-id="layoutStore.editConnectionId"
+      @update:show="layoutStore.showConnectionDialog = $event"
+      @saved="layoutStore.closeConnectionDialog()"
+    />
   </n-config-provider>
 </template>
 
@@ -82,6 +88,7 @@ import SqlEditorTabs from '@/components/editor/SqlEditorTabs.vue'
 import SqlEditor from '@/components/editor/SqlEditor.vue'
 import ResultPanel from '@/components/result/ResultPanel.vue'
 import ChatPanel from '@/components/chat/ChatPanel.vue'
+import ConnectionDialog from '@/components/dialog/ConnectionDialog.vue'
 
 const layoutStore = useLayoutStore()
 const editorStore = useEditorStore()
