@@ -67,6 +67,7 @@
       </div>
       <StatusBar />
     </div>
+    <!-- Connection dialog -->
     <ConnectionDialog
       :show="layoutStore.showConnectionDialog"
       :edit-id="layoutStore.editConnectionId"

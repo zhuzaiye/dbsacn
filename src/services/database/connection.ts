@@ -52,9 +52,18 @@ export const databaseService = {
     })
   },
 
-  async connect(connectionId: string): Promise<boolean> {
+  async connect(connection: DatabaseConnection): Promise<boolean> {
     return await invoke<boolean>('connect', {
-      connectionId
+      connectionId: connection.id,
+      config: {
+        name: connection.name,
+        db_type: connection.type,
+        host: connection.host,
+        port: connection.port,
+        database: connection.database,
+        username: connection.username,
+        password: connection.password || ''
+      }
     })
   },
 

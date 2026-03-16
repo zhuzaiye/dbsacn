@@ -71,8 +71,15 @@ import {
   FlashOutline
 } from '@vicons/ionicons5'
 import { useEditorStore } from '@/stores/editor'
+import { useDatabaseStore } from '@/stores/database'
+import { useResultStore } from '@/stores/result'
+import { useLayoutStore } from '@/stores/layout'
+import { databaseService } from '@/services/database'
 
 const editorStore = useEditorStore()
+const databaseStore = useDatabaseStore()
+const resultStore = useResultStore()
+const layoutStore = useLayoutStore()
 
 const activeTabId = computed({
   get: () => editorStore.activeTabId || '',
@@ -101,14 +108,27 @@ function handleNewTab() {
   editorStore.createTab()
 }
 
-function handleCopy() {
-  // TODO: Copy SQL to clipboard
-  console.log('Copy clicked')
+async function handleCopy() {
+  const content = editorStore.activeTab?.content || ''
+  if (!content) return
+  try {
+    await navigator.clipboard.writeText(content)
+    resultStore.addLog('Copied SQL to clipboard')
+  } catch {
+    resultStore.addLog('Failed to copy SQL to clipboard')
+  }
 }
 
 function handleFormat() {
-  // TODO: Format SQL
-  console.log('Format clicked')
+  const tab = editorStore.activeTab
+  if (!tab) return
+  const formatted = tab.content
+    .split('\n')
+    .map(line => line.trimEnd())
+    .join('\n')
+    .trim()
+  editorStore.updateTabContent(tab.id, formatted)
+  resultStore.addLog('Formatted SQL in editor')
 }
 
 function handleSave() {
@@ -117,14 +137,57 @@ function handleSave() {
   }
 }
 
-function handleRun() {
-  // TODO: Execute SQL query
-  console.log('Run clicked')
+async function handleRun() {
+  await runQuery(false)
 }
 
-function handleForceRun() {
-  // TODO: Force execute SQL query
-  console.log('Force run clicked')
+async function handleForceRun() {
+  await runQuery(true)
+}
+
+async function runQuery(force: boolean) {
+  const connection = databaseStore.activeConnection
+  const sql = editorStore.activeTab?.content?.trim() || ''
+  if (!connection) {
+    resultStore.addLog('No active connection. Please create and select a connection first.')
+    layoutStore.showResultPanel = true
+    layoutStore.setActiveResultTab('logs')
+    return
+  }
+  if (!sql) {
+    resultStore.addLog('No SQL to execute.')
+    return
+  }
+
+  try {
+    if (!connection.connected || force) {
+      await databaseService.connect(connection)
+      databaseStore.setConnectionStatus(connection.id, true)
+      resultStore.addLog(`Connected: ${connection.name}`)
+    }
+
+    const result = await databaseService.executeQuery(connection.id, sql)
+    resultStore.setQueryResult({
+      columns: result.columns,
+      rows: result.rows,
+      rowCount: result.rowCount,
+      executionTime: result.executionTime
+    })
+    editorStore.addToHistory(sql, true, result.executionTime)
+    layoutStore.showResultPanel = true
+    layoutStore.setActiveResultTab('data')
+    resultStore.addLog(`Query ok: ${result.rowCount} rows, ${result.executionTime ?? 0} ms`)
+
+    const schema = await databaseService.fetchSchema(connection.id)
+    databaseStore.setDatabaseTree(schema)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    editorStore.addToHistory(sql, false, undefined, message)
+    resultStore.addLog(`Query failed: ${message}`)
+    layoutStore.showResultPanel = true
+    layoutStore.setActiveResultTab('logs')
+    databaseStore.setConnectionStatus(connection.id, false)
+  }
 }
 </script>
 
